@@ -10,7 +10,7 @@
 ## 使用
 
 1. 修改 config.yaml, prefix 为先前的 redis 前缀，ToPrefix 为新的 redis 前缀
-2. 允许该工具
+2. `go run main.go` 或使用 release 中的 二进制文件
 3. 下载新版本的 busuanzi, 并配置 config.yaml, 使得 
 
 - prefix 为新的 redis 前缀
