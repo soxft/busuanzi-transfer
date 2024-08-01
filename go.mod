@@ -1,4 +1,4 @@
-module github.com/soxftbusuanzi-transfer
+module github.com/soxft/busuanzi-transfer
 
 go 1.22
 
