@@ -27,6 +27,17 @@ import (
 var RDB *redis.Client
 
 func main() {
+	// 询问 是否备份数据了
+	var backup string
+	fmt.Print("您是否已经备份了数据 (dump.rdb), 继续操作可能造成未知错误或影响 (yes/no): ")
+	_, err := fmt.Scan(&backup)
+	if err != nil {
+		log.Fatalf("[ERROR] input failed: %v", err)
+	}
+	if backup != "yes" {
+		log.Fatalf("[ERROR] 请先备份您的数据!")
+	}
+
 	initConfig()
 	initRedis()
 
@@ -38,19 +49,21 @@ func main() {
 		key := fmt.Sprintf("%s:site_uv:*", viper.GetString("redis.prefix"))
 		result := RDB.Scan(context.Background(), cur, key, 100)
 		if result.Err() != nil {
-			log.Fatalf("[ERROR] Redis scan failed: %v", result.Err())
+			log.Printf("[ERROR] Redis scan failed: %v", result.Err())
+			continue
 		}
 
 		keys, cur = result.Val()
 		// get siteUv keys
 		if len(keys) > 0 {
 			for _, ks := range keys {
-				log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
+				// log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
 
 				// check if set
 				keyType := RDB.Type(context.Background(), ks)
 				if keyType.Err() != nil {
-					log.Fatalf("[ERROR] Redis Type failed: %v", keyType.Err())
+					log.Printf("[ERROR] Redis Type failed: %v", keyType.Err())
+					continue
 				}
 				if keyType.Val() != "set" {
 					log.Printf("[INFO] Redis key %v is not set \r\n", ks)
@@ -60,7 +73,8 @@ func main() {
 				// get siteUvs (set)
 				pageUVs, err := RDB.SMembers(context.Background(), ks).Result()
 				if err != nil {
-					log.Fatalf("[ERROR] Redis SMembers failed: %v", err)
+					log.Printf("[ERROR] Redis SMembers failed: %v", err)
+					continue
 				}
 				// transfer pageUV to pageUV (HyperLogLog)
 				log.Printf("[INFO] transfer %v to HyperLogLog with %d members\r\n", ks, len(pageUVs))
@@ -68,7 +82,8 @@ func main() {
 					k := strings.ReplaceAll(ks, viper.GetString("redis.prefix"), viper.GetString("redis.ToPrefix"))
 
 					if err := RDB.PFAdd(context.Background(), k, pageUV).Err(); err != nil {
-						log.Fatalf("[ERROR] Redis PFAdd failed: %v", err)
+						log.Printf("[ERROR] Redis PFAdd failed: %v", err)
+						continue
 					}
 				}
 			}
@@ -85,19 +100,21 @@ func main() {
 		key := fmt.Sprintf("%s:page_uv:*", viper.GetString("redis.prefix"))
 		result := RDB.Scan(context.Background(), cur, key, 100)
 		if result.Err() != nil {
-			log.Fatalf("[ERROR] Redis scan failed: %v", result.Err())
+			log.Printf("[ERROR] Redis scan failed: %v", result.Err())
+			continue
 		}
 
 		keys, cur = result.Val()
 		// get pageUV keys
 		if len(keys) > 0 {
 			for _, ks := range keys {
-				log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
+				// log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
 
 				// check if set
 				keyType := RDB.Type(context.Background(), ks)
 				if keyType.Err() != nil {
-					log.Fatalf("[ERROR] Redis Type failed: %v", keyType.Err())
+					log.Printf("[ERROR] Redis Type failed: %v", keyType.Err())
+					continue
 				}
 				if keyType.Val() != "set" {
 					log.Printf("[INFO] Redis key %v is not set \r\n", ks)
@@ -107,7 +124,8 @@ func main() {
 				// get pageUVs (set)
 				pageUVs, err := RDB.SMembers(context.Background(), ks).Result()
 				if err != nil {
-					log.Fatalf("[ERROR] Redis SMembers failed: %v", err)
+					log.Printf("[ERROR] Redis SMembers failed: %v", err)
+					continue
 				}
 				// transfer pageUV to pageUV (HyperLogLog)
 				log.Printf("[INFO] transfer %v to HyperLogLog with %d members\r\n", ks, len(pageUVs))
@@ -115,7 +133,8 @@ func main() {
 					k := strings.ReplaceAll(ks, viper.GetString("redis.prefix"), viper.GetString("redis.ToPrefix"))
 
 					if err := RDB.PFAdd(context.Background(), k, pageUV).Err(); err != nil {
-						log.Fatalf("[ERROR] Redis PFAdd failed: %v", err)
+						log.Printf("[ERROR] Redis PFAdd failed: %v", err)
+						continue
 					}
 				}
 			}
@@ -132,19 +151,21 @@ func main() {
 		key := fmt.Sprintf("%s:site_pv:*", viper.GetString("redis.prefix"))
 		result := RDB.Scan(context.Background(), cur, key, 100)
 		if result.Err() != nil {
-			log.Fatalf("[ERROR] Redis scan failed: %v", result.Err())
+			log.Printf("[ERROR] Redis scan failed: %v", result.Err())
+			continue
 		}
 
 		keys, cur = result.Val()
 		// get sitePV keys
 		if len(keys) > 0 {
 			for _, ks := range keys {
-				log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
+				// log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
 
 				// check if str
 				keyType := RDB.Type(context.Background(), ks)
 				if keyType.Err() != nil {
-					log.Fatalf("[ERROR] Redis Type failed: %v", keyType.Err())
+					log.Printf("[ERROR] Redis Type failed: %v", keyType.Err())
+					continue
 				}
 				if keyType.Val() != "string" {
 					log.Printf("[INFO] Redis key %v is not string \r\n", ks)
@@ -154,13 +175,15 @@ func main() {
 				// get sitePV (str)
 				res := RDB.Get(context.Background(), ks)
 				if res.Err() != nil {
-					log.Fatalf("[ERROR] Redis Get failed: %v", res.Err())
+					log.Printf("[ERROR] Redis Get failed: %v", res.Err())
+					continue
 				}
 				// transfer sitePV to sitePV (str)
 				k := strings.ReplaceAll(ks, viper.GetString("redis.prefix"), viper.GetString("redis.ToPrefix"))
 				log.Printf("[INFO] transfer %v %s\r\n", ks, res.Val())
 				if err := RDB.Set(context.Background(), k, res.Val(), 0).Err(); err != nil {
-					log.Fatalf("[ERROR] Redis Set failed: %v", err)
+					log.Printf("[ERROR] Redis Set failed: %v", err)
+					continue
 				}
 			}
 		}
@@ -176,19 +199,21 @@ func main() {
 		key := fmt.Sprintf("%s:page_pv:*", viper.GetString("redis.prefix"))
 		result := RDB.Scan(context.Background(), cur, key, 100)
 		if result.Err() != nil {
-			log.Fatalf("[ERROR] Redis scan failed: %v", result.Err())
+			log.Printf("[ERROR] Redis scan failed: %v", result.Err())
+			continue
 		}
 
 		keys, cur = result.Val()
 		// get pagePV keys
 		if len(keys) > 0 {
 			for _, ks := range keys {
-				log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
+				// log.Printf("[INFO] Redis scan keys: %v \r\n", keys)
 
 				// check if zset
 				keyType := RDB.Type(context.Background(), ks)
 				if keyType.Err() != nil {
-					log.Fatalf("[ERROR] Redis Type failed: %v", keyType.Err())
+					log.Printf("[ERROR] Redis Type failed: %v", keyType.Err())
+					continue
 				}
 				if keyType.Val() != "zset" {
 					log.Printf("[INFO] Redis key %v is not zset \r\n", ks)
@@ -198,14 +223,16 @@ func main() {
 				// get pagePV (zset)
 				res := RDB.ZRangeWithScores(context.Background(), ks, 0, -1)
 				if res.Err() != nil {
-					log.Fatalf("[ERROR] Redis ZRangeWithScores failed: %v", res.Err())
+					log.Printf("[ERROR] Redis ZRangeWithScores failed: %v", res.Err())
+					continue
 				}
 				// transfer pagePV to pagePV (zset)
 				k := strings.ReplaceAll(ks, viper.GetString("redis.prefix"), viper.GetString("redis.ToPrefix"))
 				log.Printf("[INFO] transfer %v with %v\r\n", ks, res.Val())
 				for _, v := range res.Val() {
 					if err := RDB.ZAdd(context.Background(), k, redis.Z{Score: v.Score, Member: v.Member.(string)}).Err(); err != nil {
-						log.Fatalf("[ERROR] Redis ZAdd failed: %v", err)
+						log.Printf("[ERROR] Redis ZAdd failed: %v", err)
+						continue
 					}
 				}
 			}
@@ -216,6 +243,8 @@ func main() {
 		}
 	}
 
+	log.Printf("[INFO] 数据已完成迁移, 新的 redis 前缀为: %s , 在验证迁移成功后, 您可以稍后手动删除旧数据\r\n", viper.GetString("redis.ToPrefix"))
+	log.Println("[INFO] 请参考 readme 进行后续操作")
 }
 
 func initConfig() {
